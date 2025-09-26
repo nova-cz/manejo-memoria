@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Traductor de Direcciones: Virtual → Física</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      margin: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #333;
+      border-bottom: 2px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-left: 10px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    #output {
+      background: #f8f8f8;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.4;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .file-input {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🔄 Traductor de Direcciones Virtuales a Físicas</h2>
+    <p>Sube un archivo .txt con la configuración de memoria y direcciones virtuales para traducir.</p>
+    
+    <div class="file-input">
+      <input id="file" type="file" accept=".txt">
+      <button id="calc">Calcular Traducción</button>
+    </div>
+
+    <h3>📋 Resultado:</h3>
+    <pre id="output">Selecciona un archivo .txt y presiona "Calcular Traducción" para ver los resultados...</pre>
+  </div>
+
+<script>
+document.getElementById('calc').addEventListener('click', async () => {
+  const fileEl = document.getElementById('file');
+  if (!fileEl.files.length) { 
+    alert('⚠️ Por favor, selecciona un archivo .txt primero'); 
+    return; 
+  }
+  const f = fileEl.files[0];
+  const fd = new FormData();
+  fd.append('file', f);
+
+  document.getElementById('output').textContent = '⏳ Procesando archivo y calculando traducciones...';
+  try {
+    const resp = await fetch('http://127.0.0.1:8002/upload', {
+      method: 'POST',
+      body: fd
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      document.getElementById('output').textContent = '❌ ERROR DEL SERVIDOR:\n' + err;
+      return;
+    }
+    const data = await resp.json();
+    // Mostrar información completa en español
+    let out = '';
+    out += `=== CONFIGURACIÓN DEL SISTEMA ===\n`;
+    out += `Memoria Física: ${data.summary.memoria_fisica_bytes.toLocaleString()} bytes (${(data.summary.memoria_fisica_bytes / (1024**3)).toFixed(2)} GB)\n`;
+    out += `Memoria Virtual: ${data.summary.memoria_virtual_bytes.toLocaleString()} bytes (${(data.summary.memoria_virtual_bytes / (1024**3)).toFixed(2)} GB)\n`;
+    out += `Tamaño de Página: ${data.summary.tamanio_pagina_bytes.toLocaleString()} bytes (${(data.summary.tamanio_pagina_bytes / 1024)} KB)\n`;
+    out += `Bits de Offset: ${data.summary.offset_bits} bits\n`;
+    out += `Bits de Dirección Virtual: ${data.summary.virtual_address_bits} bits\n`;
+    out += `Bits de Número de Página: ${data.summary.page_number_bits} bits\n`;
+    out += `Total de Páginas Virtuales: ${data.summary.num_pages_virtual.toLocaleString()}\n`;
+    out += `Total de Marcos Físicos: ${data.summary.num_frames.toLocaleString()}\n\n`;
+
+    out += `=== TRADUCCIÓN DE DIRECCIONES ===\n\n`;
+    
+    for (const r of data.results) {
+      if (r.error) {
+        out += `❌ ERROR para ${r.virtual || 'dirección desconocida'}:\n   ${r.error}\n\n`;
+      } else if (r.page_fault) {
+        out += `🚫 FALLO DE PÁGINA (PAGE FAULT)\n`;
+        out += `   Dirección Virtual: ${r.virtual_hex}\n`;
+        out += `   Número de Página: ${r.page_index}\n`;
+        out += `   Página en Binario: ${r.page_bin}\n`;
+        out += `   Offset en Binario: ${r.offset_bin}\n`;
+        out += `   Motivo: ${r.message || 'Página no válida en tabla de páginas'}\n\n`;
+      } else {
+        out += `✅ TRADUCCIÓN EXITOSA\n`;
+        out += `   Dirección Virtual: ${r.virtual_hex}\n`;
+        out += `   Dirección Física: ${r.physical_hex}\n`;
+        out += `   \n`;
+        out += `   DETALLES:\n`;
+        out += `   • Número de Página: ${r.page_index} (binario: ${r.page_bin})\n`;
+        out += `   • Marco Físico: ${r.frame} (binario: ${r.frame_bin})\n`;
+        out += `   • Offset: ${r.offset_bin}\n`;
+        out += `   • Dirección Física (binario): ${r.physical_bin}\n\n`;
+      }
+    }
+    document.getElementById('output').textContent = out;
+  } catch (e) {
+    document.getElementById('output').textContent = '🌐 ERROR DE CONEXIÓN:\n' + 
+      'No se pudo conectar con el servidor. Asegúrate de que el backend esté ejecutándose en el puerto 8002.\n\n' +
+      'Detalles técnicos: ' + e;
+  }
+});
+</script>
+  </div>
+</body>
+</html>

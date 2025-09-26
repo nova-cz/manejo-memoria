@@ -1,0 +1,25 @@
+# Parámetros
+memoria_fisica: 1 GByte
+memoria_virtual: 4 GByte
+tamanio_pagina: 8 KByte
+
+# Tabla de páginas: index, frame_decimal
+tabla_paginas:
+0, X
+1, X
+2, X
+3, 223
+4, X
+5, 168
+6, 235
+7, 57
+10, 138
+11, 204
+13, 77
+15, 206
+
+direcciones_virtuales:
+0x0655A025
+0x00FF23AB
+0x0001ABCD
+
